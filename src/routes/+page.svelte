@@ -4,17 +4,18 @@
 	import {treeStore} from "../stores/treestore";
 	import {selectionStore} from "../stores/selectionStore";
 	import {settingsStore} from "../stores/settingsStore";
+	import Progress from "./progress.svelte";
+
+	import {openAI} from "$lib/openAI";
 
 	const getBlobURL = (code, type) => {
 		const blob = new Blob([code], {type});
 		return URL.createObjectURL(blob);
 	};
 
-	const selectItem = (item) => {
-		console.log("selecting item - ", item.versionTag);
-		selectionStore.update((d) =>
-			Object.assign({}, d, {versionTag: item.versionTag})
-		);
+	const selectItem = ({versionTag}) => {
+		console.log("selecting item - ", versionTag);
+		selectionStore.update((d) => Object.assign({}, d, {versionTag}));
 		selectionStore.save();
 	};
 
@@ -26,22 +27,112 @@
 		});
 		settingsStore.save();
 	};
+
+	let isProcessing = false;
+
+	const promptKeyPress = (e) => {
+		// console.log("kp evt - ", e);
+		if (e.key === "Enter" || e.keyCode === 13) {
+			console.log("processing API request...");
+			isProcessing = true;
+
+			if (!$treeStore || $treeStore.length === 0) {
+				isProcessing = false;
+				throw Error("treeStore cannot be empty while prompting");
+				return;
+			}
+
+			if (
+				!$selectionStore ||
+				$selectionStore.versionTag < 0 ||
+				typeof $selectionStore.versionTag !== "number"
+			) {
+				// console.log("selectionStore - ", $selectionStore);
+				isProcessing = false;
+				alert("Please select a version first");
+				return;
+			}
+
+			if (!$settingsStore || !$settingsStore.openAIKey) {
+				isProcessing = false;
+				alert("Please add a valid OpenAI API key first");
+			}
+
+			var treeItem = $treeStore.find(
+				(x) => x.versionTag === $selectionStore.versionTag
+			);
+
+			if (!treeItem) {
+				isProcessing = false;
+				alert(
+					"Version data is stale. Please select a version first..."
+				);
+				return;
+			}
+
+			openAI(treeItem.html, e.target.value, $settingsStore.openAIKey)
+				.then((response) => {
+					console.log("open ai response - ", response);
+
+					if (response && response.choices) {
+						let output = response.choices[0];
+						if (output && output.finish_reason === "stop") {
+							// TODO - validate HTML content
+							let html = output.message.content;
+
+							let newV = treeStore.push({
+								prevVersion: treeItem.versionTag,
+								html,
+								prompt: e.target.value,
+							});
+
+							if (newV) {
+								selectItem({versionTag: newV});
+							}
+
+							treeStore.save();
+						}
+					}
+
+					e.target.value = "";
+				})
+				.catch((e) => {
+					console.error(e);
+					alert(
+						"Something went wrong with the API call. Please try again or contact support."
+					);
+				})
+				.then(() => (isProcessing = false));
+		}
+	};
 </script>
 
 <div class="row">
 	<div class="column centered p1">
-		<h1 class="m0 p0">Welcome to SvelteKit</h1>
+		<h1 class="m0 p0">Welcome to ThoughtForma</h1>
 	</div>
 </div>
 
 <div class="row">
 	<div class="column column-75 p1 centered">
 		<div class="row">
-			<div class="column left p1"><input class="m0" /></div>
+			<div class="column left p1 flex" style="align-items:center;">
+				<input
+					class="m0"
+					placeholder="Type instruction prompt..."
+					on:keypress={promptKeyPress}
+				/>
+				<div class="p1" style="position:absolute; right:0;">
+					<Progress
+						style="padding-right:1em;color:lightblue;font-weight:bold;"
+						isInProgress={isProcessing}
+					/>
+				</div>
+			</div>
 		</div>
 		<div class="row">
 			<div class="column left p1">
-				{#if $selectionStore && $selectionStore.versionTag !== null}
+				{#if $selectionStore && $selectionStore.versionTag >= 0}
 					{@const treeItem = $treeStore.find(
 						(x) => x.versionTag === $selectionStore.versionTag
 					)}
@@ -93,7 +184,9 @@
 					>
 						<div class="overlay p0-25">
 							<span class="text"
-								>{treeItem.versionTag || "notag"}</span
+								>v{treeItem.versionTag >= 0
+									? treeItem.versionTag
+									: "notag"}</span
 							>
 						</div>
 						<iframe class="scaled-frame" src={blobUrl} />
@@ -108,6 +201,10 @@
 </p>
 
 <style>
+	div {
+		position: relative;
+	}
+
 	h1,
 	h2,
 	h3,
@@ -115,6 +212,10 @@
 	h5,
 	h6 {
 		margin: 0;
+	}
+
+	.flex {
+		display: flex;
 	}
 
 	.p0-25 {
@@ -169,7 +270,7 @@
 		height: 10em;
 		margin: 1em 0;
 		border: solid 3px gainsboro;
-		transition: .2s;
+		transition: 0.2s;
 	}
 	.version-item:hover {
 		transform: scale(1.02);

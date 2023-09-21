@@ -1,6 +1,6 @@
 /** @format */
 
-console.log('hi starting...');
+console.log("hi starting...");
 
 import {writable, get} from "svelte/store";
 import localforage from "localforage";
@@ -8,7 +8,7 @@ import localforage from "localforage";
 const storageKey = "worktree";
 export const treeStore = writable([]);
 
-const stock = genStockData(10).reverse();
+const stock = genStockData(1).reverse();
 localforage.getItem(storageKey).then((data) => {
 	treeStore.update((d) => data || stock);
 });
@@ -25,12 +25,30 @@ treeStore.save = () => {
 	}, 500);
 };
 
+treeStore.push = ({prevVersion, prompt, html}) => {
+	let newVersion = null;
+	treeStore.update((d) => {
+		if (Array.isArray(d)) {
+			var newA = d.reverse().slice(0, prevVersion + 1);
+			newVersion = prevVersion + 1;
+			newA.push({
+				versionTag: newVersion,
+				prompt,
+				html,
+			});
+			return newA.reverse();
+		}
+		return d;
+	});
+	return newVersion;
+};
+
 function genStockData(count) {
 	return Array(count)
 		.fill(0)
 		.map((x, i) => {
 			return {
-				versionTag: `v${i}`,
+				versionTag: i,
 				prompt: `oogabooga v${i}`,
 				html: `<!DOCTYPE html>
 				<html lang="en">
