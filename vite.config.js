@@ -1,7 +1,7 @@
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 
-const IGNORED_WARNINGS = ['a11y-label-has-associated-control', 'a11y-no-onchange'];
+const IGNORED_WARNINGS = ['a11y-label-has-associated-control', 'a11y-no-onchange','a11y-no-noninteractive-element-interactions'];
 
 export default defineConfig({
 	plugins: [sveltekit({
