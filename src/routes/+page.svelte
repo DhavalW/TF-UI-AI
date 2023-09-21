@@ -142,7 +142,7 @@
 							"text/html"
 						)}
 						<div class="preview shadow rounded">
-							<iframe src={blobUrl} />
+							<iframe title="main view" src={blobUrl} />
 						</div>
 					{/if}
 				{/if}
@@ -181,6 +181,8 @@
 						class:selected={$selectionStore &&
 							$selectionStore.versionTag === treeItem.versionTag}
 						on:click={selectItem(treeItem)}
+						on:keypress={()=>{}}
+						role="listitem"
 					>
 						<div class="overlay p0-25">
 							<span class="text"
@@ -189,7 +191,7 @@
 									: "notag"}</span
 							>
 						</div>
-						<iframe class="scaled-frame" src={blobUrl} />
+						<iframe title="preview" class="scaled-frame" src={blobUrl} />
 					</div>
 				{/each}
 			</div>
@@ -206,10 +208,6 @@
 	}
 
 	h1,
-	h2,
-	h3,
-	h4,
-	h5,
 	h6 {
 		margin: 0;
 	}
